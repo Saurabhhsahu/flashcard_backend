@@ -1,31 +1,32 @@
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+require('dotenv').config(); // Load environment variables
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
 const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "Saurabhsahu@7878",
-    database: "flashcards_db"
-})
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE
+});
 
 db.connect((err) => {
     if (err) console.log(err);
     console.log('Connected to the database.');
 });
 
-app.get('/flashcards',async (req,res) => {
+app.get('/flashcards', async (req, res) => {
     const sql = "SELECT * FROM cards";
-    db.query(sql,(err,data) => {
-        if(err) return res.json({err : "Internal server error"});
+    db.query(sql, (err, data) => {
+        if (err) return res.json({ err: "Internal server error" });
         return res.json(data);
-    })
-    console.log("data fetched successfully");
-})
+    });
+    console.log("Data fetched successfully");
+});
 
 app.post('/flashcards', (req, res) => {
     const { id, question, answer } = req.body;
@@ -35,22 +36,22 @@ app.post('/flashcards', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(result);
     });
-    console.log("data posted successfully");
+    console.log("Data posted successfully");
 });
 
-app.put('/admin/:id',async (req,res) => {
-    try{
+app.put('/admin/:id', async (req, res) => {
+    try {
         const findId = parseInt(req.params.id, 10);
         const sql = "SELECT * FROM cards";
-        db.query(sql,(err,data) => {
-            if(err) return res.json({err : "Internal server error"});
-            const idx =  data.findIndex((curr) =>   curr.id === findId);
+        db.query(sql, (err, data) => {
+            if (err) return res.json({ err: "Internal server error" });
+            const idx = data.findIndex((curr) => curr.id === findId);
             console.log(idx);
-            
+
             if (idx === -1) {
                 return res.status(404).json({ err: "Data not found" });
             }
-            
+
             const { id, question, answer } = req.body;
             const updatedData = { ...data[idx], id, question, answer };
             data[idx] = updatedData;
@@ -61,37 +62,36 @@ app.put('/admin/:id',async (req,res) => {
                 WHERE id = ?;
             `;
             const updateValues = [question, answer, findId];
-            
+
             db.query(sqlUpdate, updateValues, (updateErr) => {
                 if (updateErr) {
                     return res.status(500).json({ err: "Internal server error" });
                 }
-                
+
                 console.log("Data updated successfully!");
-                return res.send("Data updated successfully")
+                return res.send("Data updated successfully");
             });
-        })
+        });
+    } catch (err) {
+        console.log({ err: "Internal server error" });
+        return res.status(500).json({ err: "Internal server error" });
     }
-    catch(err){
-        console.log({err: "Internal server error"});
-        return res.status(500).json({err: "Internal server error"});
-    }
-})
+});
 
 app.delete('/admin/:id', async (req, res) => {
     try {
         const findId = parseInt(req.params.id, 10);
-        
+
         if (isNaN(findId)) {
-            return res.status(400).json({ err: "Invalid ID" }); // If the ID is not a number, return an error
+            return res.status(400).json({ err: "Invalid ID" });
         }
 
         const sqlSelect = "SELECT * FROM cards WHERE id = ?";
         db.query(sqlSelect, [findId], (err, data) => {
             if (err) return res.status(500).json({ err: "Internal server error" });
-            
+
             if (data.length === 0) {
-                return res.status(404).json({ err: "Data not found" }); // If no record found with the given ID
+                return res.status(404).json({ err: "Data not found" });
             }
 
             const sqlDelete = "DELETE FROM cards WHERE id = ?";
@@ -99,7 +99,7 @@ app.delete('/admin/:id', async (req, res) => {
                 if (deleteErr) {
                     return res.status(500).json({ err: "Internal server error" });
                 }
-                
+
                 return res.send("Data deleted successfully");
             });
         });
@@ -108,7 +108,6 @@ app.delete('/admin/:id', async (req, res) => {
     }
 });
 
-
-app.listen(8080,() => {
-    console.log("Listening...");
-})
+app.listen(process.env.PORT, () => {
+    console.log(`Listening on port ${process.env.PORT}...`);
+});
